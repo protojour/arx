@@ -82,7 +82,7 @@ fn filter_k8s_http_route(http_route: HTTPRoute) -> Option<(String, HTTPRoute)> {
 
     if !parent_refs
         .iter()
-        .any(|parent_ref| parent_ref.name == "memoriam-gateway")
+        .any(|parent_ref| parent_ref.name == "arx")
     {
         return None;
     }
@@ -299,7 +299,7 @@ mod tests {
               name: test
             spec:
               parentRefs:
-                - name: memoriam-gateway
+                - name: arx
               rules:
                 - matches:
                   - path:
@@ -345,7 +345,7 @@ mod tests {
               name: test
             spec:
               parentRefs:
-                - name: memoriam-gateway
+                - name: arx
               rules:
                 - matches:
                     - path:
