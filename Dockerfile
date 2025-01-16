@@ -52,4 +52,3 @@ COPY --from=builder /app/target/aarch64-unknown-linux-musl/${RUST_PROFILE}/arx /
 FROM dist_${TARGETARCH}
 ARG TARGETARCH
 ENTRYPOINT ["/arx"]
-CMD ["--help"]

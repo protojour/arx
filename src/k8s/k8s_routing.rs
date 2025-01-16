@@ -13,7 +13,6 @@ use url::Url;
 use crate::{
     route::{Proxy, Route},
     static_routes::static_routes,
-    // static_routes::static_routes,
 };
 
 use super::k8s_util::{api_watcher, ApiWatcherCallbacks};

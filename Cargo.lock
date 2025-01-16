@@ -157,6 +157,7 @@ dependencies = [
  "reqwest-tracing",
  "reqwest-websocket",
  "retry-policies",
+ "rustls",
  "schemars",
  "serde",
  "serde_json",

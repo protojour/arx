@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use http::{header, HeaderValue, Request, StatusCode, Uri};
-// use memoriam_http::{reverse_proxy::reverse_proxy, HttpError, HyperResponse};
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::{error, info, trace, Level};

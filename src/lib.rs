@@ -37,6 +37,8 @@ fn arx_anyhow(error: impl Into<anyhow::Error>) -> ArxError {
 }
 
 pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     // just leak the config, it's a singleton
     let cfg = Box::leak(Box::new(cfg));
 
