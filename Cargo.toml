@@ -57,6 +57,7 @@ serde = { version = "1", features = ["derive"] }
 serde_with = { version = "3", default-features = false, features = ["macros"] }
 serde_json = "1"
 schemars = { version = "0.8", features = ["chrono", "url"] }
+thiserror = "2"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
 tokio-tungstenite = "0.24"
@@ -82,4 +83,5 @@ url = { version = "2", features = ["serde"] }
 [dev-dependencies]
 axum = { version = "0.7", features = ["ws"] }
 indoc = "2"
+serde_yaml = "0.9.34"
 wiremock = "0.6"

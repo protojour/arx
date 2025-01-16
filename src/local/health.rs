@@ -1,3 +1,5 @@
+//! The health module is work in progress.
+
 use http::StatusCode;
 use serde::Serialize;
 use url::Url;
@@ -7,6 +9,7 @@ use url::Url;
 pub struct HealthInfo {
     name: String,
     #[serde(skip_serializing)]
+    #[allow(unused)]
     url: Option<Url>,
     status_code: u16,
     status: String,
@@ -24,6 +27,7 @@ impl HealthInfo {
     }
     */
 
+    #[expect(unused)]
     async fn health_query(&mut self, http_client: &reqwest::Client) {
         let Some(ref url) = self.url else { return };
         let result = http_client.get(url.clone()).send().await;
@@ -43,6 +47,6 @@ impl HealthInfo {
 }
 
 /// Gateway health info handler; checks health of all subsystems
-pub async fn health(client: &reqwest::Client) -> Vec<HealthInfo> {
+pub async fn health(_client: &reqwest::Client) -> Vec<HealthInfo> {
     vec![]
 }

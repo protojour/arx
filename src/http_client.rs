@@ -1,12 +1,10 @@
-use std::{fs, ops::Deref, sync::Arc};
+use std::{ops::Deref, sync::Arc};
 
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use reqwest_tracing::TracingMiddleware;
 
 use crate::{arx_anyhow, config::ArxConfig, ArxError};
-
-pub use reqwest_middleware::Error as MiddlewareError;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -31,8 +29,8 @@ impl HttpClient {
         builder: reqwest::ClientBuilder,
         cfg: &ArxConfig,
     ) -> Result<Self, ArxError> {
-        let mut builder = builder
-            .user_agent(format!("Memoriam/{}", VERSION))
+        let builder = builder
+            .user_agent(format!("Arx/{}", VERSION))
             .connect_timeout(cfg.connect_timeout)
             .timeout(cfg.request_timeout)
             .tcp_keepalive(cfg.keep_alive_timeout)
@@ -78,9 +76,7 @@ impl HttpClient {
         &self.inner.client
     }
 
-    /// Create a new client that disables tracing.
-    ///
-    /// Recommended for communicating with external services.
+    #[expect(unused)]
     pub fn disable_tracing(&self) -> Self {
         Self {
             middleware_client: ClientBuilder::new(self.inner.client.clone()).build(),
@@ -88,7 +84,7 @@ impl HttpClient {
         }
     }
 
-    /// Create a new client that enables backoff.
+    #[allow(unused)]
     pub fn with_backoff(&self) -> Self {
         Self {
             middleware_client: ClientBuilder::new(self.inner.client.clone())
@@ -101,7 +97,7 @@ impl HttpClient {
         }
     }
 
-    /// Create a new client that enables backoff but disables tracing.
+    #[expect(unused)]
     pub fn with_backoff_disable_tracing(&self) -> Self {
         Self {
             middleware_client: ClientBuilder::new(self.inner.client.clone())
@@ -195,7 +191,7 @@ mod tests {
         let app = axum::Router::new().route("/", axum::routing::get(|| async { "" }));
 
         let _handle = tokio::spawn(async {
-            let server_cfg = ArxConfig {
+            let _cfg = ArxConfig {
                 // cert_file: Some("../../certs/server.pem".into()),
                 // key_file: Some("../../certs/server.key".into()),
                 ..Default::default()

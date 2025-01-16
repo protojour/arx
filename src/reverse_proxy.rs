@@ -46,6 +46,7 @@ where
 
 /// Reverse-proxy a request, where the request body is !Sync.
 /// The URI is already rewritten to point to the backend server.
+#[expect(unused)]
 pub async fn reverse_proxy_unsync<B>(
     mut req: http::Request<B>,
     client: &reqwest::Client,

@@ -106,17 +106,12 @@ impl Gateway {
                 must_authenticate,
             } => {
                 if must_authenticate {
-                    authenticate(
-                        req.headers_mut(),
-                        self.state.cfg,
-                        &self.state.backends.default,
-                        self.state.authly_client.as_ref(),
-                    )
-                    .await
-                    .map_err(|_| HttpError::Static(StatusCode::UNAUTHORIZED, "unauthorized"))?;
+                    authenticate(req.headers_mut(), self.state.authly_client.as_ref())
+                        .await
+                        .map_err(|_| HttpError::Static(StatusCode::UNAUTHORIZED, "unauthorized"))?;
                 }
 
-                reverse_proxy(req, &client).await
+                reverse_proxy(req, client).await
             }
             RouteMatch::TemporaryRedirect(uri) => Ok(http::Response::builder()
                 .status(StatusCode::TEMPORARY_REDIRECT)

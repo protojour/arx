@@ -1,6 +1,6 @@
 use std::env;
 
-use arx::Config;
+use arx::config::ArxConfig;
 use clap::Parser;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::KeyValue;
@@ -11,19 +11,23 @@ use opentelemetry_sdk::{
     trace::{RandomIdGenerator, Sampler, TracerProvider},
     Resource,
 };
-use tracing::{info, level_filters::LevelFilter};
+use tracing::{info, level_filters::LevelFilter, Level};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[derive(clap::Parser)]
+pub struct Cli {}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let config = Config::parse();
+    let _cli = Cli::parse();
+    let cfg = ArxConfig::from_env();
 
     let tracing_layer = tracing_subscriber::registry()
         // coarse-grained filtering
-        .with(LevelFilter::from(config.log_level))
+        .with(LevelFilter::from(cfg.log_level.parse::<Level>()?))
         .with(tracing_subscriber::fmt::layer().with_target(false));
 
     opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
@@ -68,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
 
     info!("🧠 Arx v{VERSION}");
 
-    arx::run(config).await;
+    arx::run(cfg).await?;
 
     Ok(())
 }

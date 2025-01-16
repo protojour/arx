@@ -161,6 +161,8 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "serde_yaml",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",

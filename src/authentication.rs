@@ -1,40 +1,11 @@
-use anyhow::Context;
 use http::header::{self, AUTHORIZATION};
-// use memoriam_common::{
-//     authly::headers::{X_AUTHLY_EID, X_AUTHLY_ENTITY_ID, X_AUTHLY_ENTITY_TYPE},
-//     config::MemoriamConfig,
-//     errors::MemoriamError,
-//     http_client::HttpClient,
-// };
-use serde::Deserialize;
 use tracing::warn;
 
-use crate::{config::ArxConfig, http_client::HttpClient, ArxError};
-
-/// Authly profile data deserialization struct
-#[derive(Deserialize)]
-#[serde(rename_all_fields = "camelCase")]
-#[serde(tag = "entityType")]
-enum AuthlyProfile {
-    #[serde(rename_all = "camelCase")]
-    User {
-        #[serde(rename(deserialize = "entityID"))]
-        entity_id: i64,
-        username: String,
-    },
-    #[serde(rename_all = "camelCase")]
-    Service {
-        #[serde(rename(deserialize = "entityID"))]
-        entity_id: i64,
-        service_name: String,
-    },
-}
+use crate::ArxError;
 
 /// Authentication middleware; verifies session with Authly
 pub async fn authenticate(
     target_headers: &mut http::HeaderMap,
-    arx_config: &ArxConfig,
-    http_client: &HttpClient,
     authly_client: Option<&authly_client::Client>,
 ) -> Result<(), ArxError> {
     let cookie_jar = cookie_jar(target_headers);

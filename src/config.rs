@@ -1,6 +1,10 @@
 use std::{fmt::Display, str::FromStr, time::Duration};
 
 use bytesize::ByteSize;
+use figment::{
+    providers::{Env, Serialized},
+    Figment,
+};
 use http::HeaderName;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
@@ -123,6 +127,15 @@ impl Default for ArxConfig {
             cors_allow_private_network: true,
             cors_max_age: Duration::from_secs(60),
         }
+    }
+}
+
+impl ArxConfig {
+    pub fn from_env() -> Self {
+        Figment::from(Serialized::defaults(Self::default()))
+            .merge(Env::prefixed("ARX_"))
+            .extract()
+            .unwrap()
     }
 }
 
