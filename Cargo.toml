@@ -1,0 +1,21 @@
+[package]
+name = "arx"
+version = "0.0.1"
+authors = ["Protojour dev team <devs@protojour.com>"]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/protojour/arx"
+rust-version = "1.83"
+publish = false
+
+[lib]
+doctest = false
+
+[[bin]]
+name = "arx"
+path = "src/main.rs"
+test = false
+
+[dependencies]
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
