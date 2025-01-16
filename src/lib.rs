@@ -42,7 +42,7 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
     // just leak the config, it's a singleton
     let cfg = Box::leak(Box::new(cfg));
 
-    let cancel = CancellationToken::new();
+    let cancel = termination_signal();
 
     let default_http_client = HttpClient::new(cfg).map_err(arx_anyhow)?;
 
@@ -87,9 +87,41 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
         cfg,
     });
 
-    spawn_k8s_watchers(routes, default_http_client.reqwest_client().clone(), cancel).await?;
+    spawn_k8s_watchers(
+        routes,
+        default_http_client.reqwest_client().clone(),
+        cancel.clone(),
+    )
+    .await?;
 
     tokio::spawn(serve_gateway(gateway, http_server));
 
+    cancel.cancelled().await;
+
     Ok(())
+}
+
+fn termination_signal() -> CancellationToken {
+    let cancel = CancellationToken::new();
+    tokio::spawn({
+        let cancel = cancel.clone();
+        async move {
+            let terminate = async {
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                    .expect("failed to install signal handler")
+                    .recv()
+                    .await;
+            };
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {
+                    cancel.cancel();
+                }
+                _ = terminate => {
+                    cancel.cancel();
+                }
+            }
+        }
+    });
+
+    cancel
 }
