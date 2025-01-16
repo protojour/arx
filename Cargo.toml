@@ -18,4 +18,68 @@ test = false
 
 [dependencies]
 anyhow = "1"
+arc-swap = "1"
+async-trait = "0.1"
+authly-client = { git = "https://github.com/protojour/authly-lib.git" }
+bytes = "1"
+bytesize = { version = "1", features = ["serde"] }
+clap = { version = "4", features = ["derive", "env"] }
+cookie = "0.18"
+figment = { version = "0.10", features = ["env", "yaml"] }
+futures-util = "0.3"
+gateway-api = "0.14"
+http = "1"
+http-body = "1"
+http-body-util = "0.1"
+humantime-serde = "1"
+hyper = "1"
+hyper-util = { version = "0.1", features = ["tokio", "server"] }
+k8s-openapi = { version = "0.24.0", features = ["latest"] }
+kube = { version = "0.98.0", features = ["runtime", "derive"] }
+matchit = "0.8"
+opentelemetry = "0.27"
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.27", features = ["grpc-tonic"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "brotli",
+  "gzip",
+  "deflate",
+  "stream",
+  "rustls-tls",
+] }
+reqwest-middleware = { version = "0.4", features = ["json"] }
+reqwest-retry = { version = "0.7" }
+reqwest-tracing = { version = "0.5", features = ["opentelemetry_0_27"] }
+reqwest-websocket = "0.4"
+retry-policies = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_with = { version = "3", default-features = false, features = ["macros"] }
+serde_json = "1"
+schemars = { version = "0.8", features = ["chrono", "url"] }
 tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+tokio-tungstenite = "0.24"
+tokio-util = "0.7"
+tower = { version = "0.5", default-features = false, features = ["util"] }
+tower-server = { version = "0.2" }
+tower-http = { version = "0.6", features = [
+  "cors",
+  "compression-full",
+  "trace",
+  "mime_guess",
+  "normalize-path",
+  "timeout",
+  "fs",
+  "full",
+] }
+tracing = "0.1"
+tracing-opentelemetry = "0.28"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tungstenite = "0.24"
+url = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+axum = { version = "0.7", features = ["ws"] }
+indoc = "2"
+wiremock = "0.6"
