@@ -4,7 +4,7 @@ use arc_swap::ArcSwap;
 use http::{header, HeaderValue, Request, StatusCode, Uri};
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
-use tracing::{error, info, trace, Level};
+use tracing::{error, trace, Level};
 
 use crate::{
     authentication::authenticate,
@@ -142,7 +142,7 @@ impl Gateway {
 
         match matchit.value {
             Route::Proxy(proxy) => {
-                info!(
+                trace!(
                     "original URI: `{}` match: `{}`",
                     req.uri(),
                     proxy.service_uri()
@@ -159,7 +159,7 @@ impl Gateway {
                 let prefix = original_uri.path().strip_suffix(rewritten_uri.path());
 
                 (*req.uri_mut()) = rewritten_uri;
-                info!("rewritten URI: `{}`", req.uri());
+                trace!("rewritten URI: `{}`", req.uri());
 
                 let headers = req.headers_mut();
                 if let Some(scheme) = scheme {
