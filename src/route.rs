@@ -27,7 +27,7 @@ impl Debug for Route {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum AuthDirective {
     /// The must be a valid session, and access token must be forwarded.
     Mandatory,

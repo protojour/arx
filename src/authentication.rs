@@ -36,33 +36,6 @@ pub async fn process_auth_directive(
         (AuthDirective::Opportunistic, None) => Ok(()),
         (AuthDirective::Disabled, _) => Ok(()),
     }
-
-    /*
-    if let Some(authly_client) = authly_client {
-        let Some(session_cookie) = cookie_jar.get("session-cookie") else {
-            return Err(ArxError::NotAuthenticated);
-        };
-
-        let access_token = authly_client
-            .get_access_token(session_cookie.value_trimmed())
-            .await
-            .map_err(|err| {
-                warn!(?err, "authly access token error");
-                ArxError::NotAuthenticated
-            })?;
-
-        target_headers.insert(
-            AUTHORIZATION,
-            format!("Bearer: {}", access_token.token)
-                .try_into()
-                .unwrap(),
-        );
-
-        Ok(())
-    } else {
-        Err(ArxError::NotAuthenticated)
-    }
-    */
 }
 
 async fn inject_access_token(
@@ -80,9 +53,7 @@ async fn inject_access_token(
 
     target_headers.insert(
         AUTHORIZATION,
-        format!("Bearer: {}", access_token.token)
-            .try_into()
-            .unwrap(),
+        format!("Bearer {}", access_token.token).try_into().unwrap(),
     );
 
     Ok(())
