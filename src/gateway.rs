@@ -7,14 +7,14 @@ use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::{error, trace, Level};
 
 use crate::{
-    authentication::authenticate,
+    authentication::process_auth_directive,
     config::ArxConfig,
     http_client::HttpClient,
     hyper::{empty_body, HttpError, HyperResponse},
     layers::{compression_layer, cors_layer},
     local::LocalService,
     reverse_proxy::reverse_proxy,
-    route::Route,
+    route::{AuthDirective, Route},
 };
 
 #[derive(Clone)]
@@ -68,7 +68,7 @@ enum RouteMatch<'a> {
         // The HTTP client to use when proxying
         http_client: &'a reqwest::Client,
         req: Request<hyper::body::Incoming>,
-        must_authenticate: bool,
+        auth_directive: AuthDirective,
     },
     LocalService {
         req: Request<hyper::body::Incoming>,
@@ -102,13 +102,15 @@ impl Gateway {
             RouteMatch::Proxy {
                 http_client: client,
                 mut req,
-                must_authenticate,
+                auth_directive,
             } => {
-                if must_authenticate {
-                    authenticate(req.headers_mut(), self.state.authly_client.as_ref())
-                        .await
-                        .map_err(|_| HttpError::Static(StatusCode::UNAUTHORIZED, "unauthorized"))?;
-                }
+                process_auth_directive(
+                    auth_directive,
+                    req.headers_mut(),
+                    self.state.authly_client.as_ref(),
+                )
+                .await
+                .map_err(|_| HttpError::Static(StatusCode::UNAUTHORIZED, "unauthorized"))?;
 
                 reverse_proxy(req, client).await
             }
@@ -181,7 +183,7 @@ impl Gateway {
                     );
                 }
 
-                let must_authenticate = proxy.must_authenticate(&req);
+                let auth_directive = proxy.get_auth_directive(&req);
 
                 // determine which http client to use (mTLS-related)
                 let http_client =
@@ -194,7 +196,7 @@ impl Gateway {
                 Ok(RouteMatch::Proxy {
                     http_client,
                     req,
-                    must_authenticate,
+                    auth_directive,
                 })
             }
             Route::TemporaryRedirect(uri) => Ok(RouteMatch::TemporaryRedirect(uri.clone())),

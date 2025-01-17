@@ -11,7 +11,7 @@ use tracing::{error, info, info_span, warn};
 use url::Url;
 
 use crate::{
-    route::{Proxy, Route},
+    route::{AuthDirective, Proxy, Route},
     static_routes::static_routes,
 };
 
@@ -173,7 +173,7 @@ pub fn try_add_http_route(
                 }
 
                 let mut url_rewrite = None;
-                let mut must_authenticate = false;
+                let mut auth_directive = AuthDirective::Disabled;
 
                 if let Some(filters) = &rule.filters {
                     for filter in filters {
@@ -182,8 +182,21 @@ pub fn try_add_http_route(
                         }
 
                         if let Some(ext) = &filter.extension_ref {
-                            if ext.group == "authly.id" && ext.name == "authn" {
-                                must_authenticate = true;
+                            if ext.group == "authly.id" {
+                                match ext.name.as_str() {
+                                    "authn" | "authn-mandatory" => {
+                                        auth_directive = AuthDirective::Mandatory;
+                                    }
+                                    "authn-opportunistic" => {
+                                        auth_directive = AuthDirective::Opportunistic;
+                                    }
+                                    "authn-disabled" => {
+                                        auth_directive = AuthDirective::Disabled;
+                                    }
+                                    _ => {
+                                        warn!(?ext.name, "invalid authly.id extension name");
+                                    }
+                                }
                             }
                         }
                     }
@@ -194,11 +207,17 @@ pub fn try_add_http_route(
                         continue;
                     };
 
-                    let mut proxy = Proxy::from_service_url(&backend_url)?;
-                    proxy = if must_authenticate {
-                        proxy.with_must_authenticate_predicate(|_| true)
-                    } else {
-                        proxy.with_must_authenticate_predicate(|_| false)
+                    let proxy = Proxy::from_service_url(&backend_url)?;
+                    let mut proxy = match auth_directive {
+                        AuthDirective::Mandatory => {
+                            proxy.with_auth_directive_fn(|_| AuthDirective::Mandatory)
+                        }
+                        AuthDirective::Opportunistic => {
+                            proxy.with_auth_directive_fn(|_| AuthDirective::Opportunistic)
+                        }
+                        AuthDirective::Disabled => {
+                            proxy.with_auth_directive_fn(|_| AuthDirective::Disabled)
+                        }
                     };
 
                     match path.r#type {

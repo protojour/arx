@@ -27,12 +27,22 @@ impl Debug for Route {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum AuthDirective {
+    /// The must be a valid session, and access token must be forwarded.
+    Mandatory,
+    /// Access token is optionally forwarded if the a session is present.
+    Opportunistic,
+    /// No access token is forwarded, and no session is needed.
+    Disabled,
+}
+
 /// A network service the gateway might proxy to
 #[derive(Clone)]
 pub struct Proxy {
     service_uri: Uri,
     replace_prefix: Option<String>,
-    must_authenticate_predicate: fn(&http::Request<Incoming>) -> bool,
+    auth_directive_fn: fn(&http::Request<Incoming>) -> AuthDirective,
 }
 
 impl Proxy {
@@ -43,19 +53,16 @@ impl Proxy {
         Ok(Self {
             service_uri: url.as_str().parse()?,
             replace_prefix: None,
-            must_authenticate_predicate: |_| true,
+            auth_directive_fn: |_| AuthDirective::Disabled,
         })
     }
 
     /// set a predicate determining whether requests must be authenticated first
     /// (default is true!)
     /// note: The request has its URL rewritten before this predicate is called
-    pub fn with_must_authenticate_predicate(
-        self,
-        predicate: fn(&http::Request<Incoming>) -> bool,
-    ) -> Self {
+    pub fn with_auth_directive_fn(self, f: fn(&http::Request<Incoming>) -> AuthDirective) -> Self {
         Self {
-            must_authenticate_predicate: predicate,
+            auth_directive_fn: f,
             ..self
         }
     }
@@ -75,8 +82,8 @@ impl Proxy {
         self.replace_prefix.as_deref()
     }
 
-    pub fn must_authenticate(&self, req: &http::Request<Incoming>) -> bool {
-        (self.must_authenticate_predicate)(req)
+    pub fn get_auth_directive(&self, req: &http::Request<Incoming>) -> AuthDirective {
+        (self.auth_directive_fn)(req)
     }
 }
 
