@@ -47,7 +47,10 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
     let default_http_client = HttpClient::new(cfg).map_err(arx_anyhow)?;
 
     let (authly_client, authly_http_client) = {
-        let authly_client_builder = authly_client::Client::builder().from_environment().await?;
+        let authly_client_builder = authly_client::Client::builder()
+            .with_url(cfg.authly_url.clone())
+            .from_environment()
+            .await?;
 
         let authly_http_client = HttpClient::with_tls_configured_builder(
             reqwest::Client::builder()
