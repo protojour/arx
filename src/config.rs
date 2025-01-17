@@ -37,49 +37,49 @@ pub struct ArxConfig {
     pub keep_alive_timeout: Duration,
     /// Whether the HTTP client accepts invalid certificates. Should remain false unless you're debugging.
     pub http_accept_invalid_certs: bool,
-    /// Use system root CA certs. Not available in the official Memoriam Docker images.
+    /// Use system root CA certs.
     pub use_root_certs: bool,
-    /// Use bundled Mozilla CA certs. Should be true when using official Memoriam Docker images.
+    /// Use bundled Mozilla CA certs.
     pub use_webpki_certs: bool,
 
     /// Minimum retry interval for cross-service requests using exponential backoff.
     #[serde(with = "humantime_serde")]
     pub backoff_min_retry_interval: Duration,
-    /// Maximum retry interval for cross-service requests using exponential backoff. [G,D,S]
+    /// Maximum retry interval for cross-service requests using exponential backoff.
     #[serde(with = "humantime_serde")]
     pub backoff_max_retry_interval: Duration,
-    /// Maximum number of retries for cross-service requests using exponential backoff. [G,D,S]
+    /// Maximum number of retries for cross-service requests using exponential backoff.
     pub backoff_max_num_retries: u32,
     /// How to apply jitter when retrying cross-service requests with exponential backoff.
     /// Valid options are "none", "full" or "bounded"
-    /// (documented [here](https://docs.rs/retry-policies/0.2.0/retry_policies/enum.Jitter.html)). [G,D,S]
+    /// (documented [here](https://docs.rs/retry-policies/0.2.0/retry_policies/enum.Jitter.html)).
     pub backoff_jitter: Jitter,
 
     /// HTTP compression level. Valid options are "fastest", "best", "default",
     /// or a number (as a string) that sets a precise level for a specific compression algorithm.
-    /// Memoriam supports brotli, gzip and deflate compression. [G]
+    /// Arx supports brotli, gzip and deflate compression.
     #[serde_as(as = "DisplayFromStr")]
     pub http_compression_level: CompressionLevel,
-    /// Minimum size of an HTTP response for compression. Responses below this size are not compressed. [G]
+    /// Minimum size of an HTTP response for compression. Responses below this size are not compressed.
     pub http_compression_min_size: ByteSize,
-    /// Whether HTTP responses with an image content type should be compressed. [G]
+    /// Whether HTTP responses with an image content type should be compressed.
     pub http_compression_compress_images: bool,
-    /// Comma-separated list of content types for which compression should be disabled. [G]
+    /// Comma-separated list of content types for which compression should be disabled.
     pub http_compression_exempt_content_types: Vec<String>,
 
-    /// Value of the CORS header `access-control-allow-origin`. [G]
+    /// Value of the CORS header `access-control-allow-origin`.
     pub cors_allow_origin: String,
-    /// Value of the CORS header `access-control-allow-methods`. [G]
+    /// Value of the CORS header `access-control-allow-methods`.
     pub cors_allow_methods: Vec<Method>,
-    /// Value of the CORS header `access-control-allow-headers`. [G]
+    /// Value of the CORS header `access-control-allow-headers`.
     pub cors_allow_headers: Vec<String>,
-    /// Value of the CORS header `access-control-expose-headers`. [G]
+    /// Value of the CORS header `access-control-expose-headers`.
     pub cors_expose_headers: Vec<String>,
-    /// Value of the CORS header `access-control-allow-credentials`. [G]
+    /// Value of the CORS header `access-control-allow-credentials`.
     pub cors_allow_credentials: bool,
-    /// Value of the CORS header `access-control-allow-private-network`. [G]
+    /// Value of the CORS header `access-control-allow-private-network`.
     pub cors_allow_private_network: bool,
-    /// Value of the CORS header `access-control-max-age`. [G]
+    /// Value of the CORS header `access-control-max-age`.
     #[serde(with = "humantime_serde")]
     pub cors_max_age: Duration,
 }
