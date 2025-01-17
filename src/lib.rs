@@ -7,7 +7,6 @@ use gateway::{serve_gateway, Backends, Gateway, GatewayState};
 use http_client::HttpClient;
 use k8s::k8s_routing::{self, spawn_k8s_watchers};
 use thiserror::Error;
-use tokio_util::sync::CancellationToken;
 use tower_server::Scheme;
 
 pub mod config;
@@ -42,7 +41,7 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
     // just leak the config, it's a singleton
     let cfg = Box::leak(Box::new(cfg));
 
-    let cancel = termination_signal();
+    let cancel = tower_server::signal::termination_signal();
 
     let default_http_client = HttpClient::new(cfg).map_err(arx_anyhow)?;
 
@@ -102,29 +101,4 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
     cancel.cancelled().await;
 
     Ok(())
-}
-
-fn termination_signal() -> CancellationToken {
-    let cancel = CancellationToken::new();
-    tokio::spawn({
-        let cancel = cancel.clone();
-        async move {
-            let terminate = async {
-                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                    .expect("failed to install signal handler")
-                    .recv()
-                    .await;
-            };
-            tokio::select! {
-                _ = tokio::signal::ctrl_c() => {
-                    cancel.cancel();
-                }
-                _ = terminate => {
-                    cancel.cancel();
-                }
-            }
-        }
-    });
-
-    cancel
 }
