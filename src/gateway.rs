@@ -14,7 +14,7 @@ use crate::{
     layers::{compression_layer, cors_layer},
     local::LocalService,
     reverse_proxy::reverse_proxy,
-    route::{AuthDirective, Route},
+    route::{AuthDirective, BackendClass, Route},
 };
 
 #[derive(Clone)]
@@ -147,13 +147,13 @@ impl Gateway {
                 trace!(
                     "original URI: `{}` match: `{}`",
                     req.uri(),
-                    proxy.service_uri()
+                    proxy.backend_uri()
                 );
 
                 let original_uri = req.uri().clone();
                 let rewritten_uri = rewrite_proxied_uri(
                     req.uri().clone(),
-                    Some(proxy.service_uri()),
+                    Some(proxy.backend_uri()),
                     &matchit,
                     proxy.replace_prefix(),
                 )?;
@@ -185,13 +185,10 @@ impl Gateway {
 
                 let auth_directive = proxy.get_auth_directive(&req);
 
-                // determine which http client to use (mTLS-related)
-                let http_client =
-                    if proxy.service_uri().host() == self.state.cfg.authly_url.host_str() {
-                        self.state.backends.authly.reqwest_client()
-                    } else {
-                        self.state.backends.default.reqwest_client()
-                    };
+                let http_client = match proxy.backend_class() {
+                    BackendClass::Plain => self.state.backends.default.reqwest_client(),
+                    BackendClass::AuthlyMesh => self.state.backends.authly.reqwest_client(),
+                };
 
                 Ok(RouteMatch::Proxy {
                     http_client,

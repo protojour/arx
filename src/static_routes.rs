@@ -56,7 +56,7 @@ mod tests {
         routes
             .insert(
                 "/stripped/{*path}",
-                Proxy::from_service_url(&"http://stripped/".parse().unwrap())
+                Proxy::from_backend_uri("http://stripped/".parse().unwrap())
                     .unwrap()
                     .with_replace_prefix("/")
                     .into(),
@@ -66,7 +66,7 @@ mod tests {
         routes
             .insert(
                 "/unstripped/{*path}",
-                Proxy::from_service_url(&"http://unstripped/".parse().unwrap())
+                Proxy::from_backend_uri("http://unstripped/".parse().unwrap())
                     .unwrap()
                     .into(),
             )

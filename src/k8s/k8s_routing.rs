@@ -1,17 +1,18 @@
 use std::{
     collections::HashMap,
+    str::FromStr,
     sync::{Arc, Mutex},
 };
 
 use arc_swap::ArcSwap;
 use gateway_api::apis::standard::httproutes::{HTTPRoute, HTTPRouteRulesMatchesPathType};
+use http::Uri;
 use kube::{runtime::reflector::Lookup, Api};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, info_span, warn};
-use url::Url;
 
 use crate::{
-    route::{AuthDirective, Proxy, Route},
+    route::{AuthDirective, BackendClass, Proxy, Route},
     static_routes::static_routes,
 };
 
@@ -150,15 +151,37 @@ pub fn try_add_http_route(
             let Some(backend_port) = backend_ref.port else {
                 continue;
             };
-            let backend_url = match backend_port {
-                443 => format!("https://{name}", name = backend_ref.name),
-                _ => format!(
-                    "http://{name}:{port}",
-                    name = backend_ref.name,
-                    port = backend_port
-                ),
+            let mut backend_class = BackendClass::Plain;
+
+            if let Some(filters) = &backend_ref.filters {
+                for filter in filters {
+                    // TODO: Support all core filters
+                    if let Some(ext) = &filter.extension_ref {
+                        if ext.group == "authly.id" {
+                            match ext.name.as_str() {
+                                "mesh" => {
+                                    backend_class = BackendClass::AuthlyMesh;
+                                }
+                                _ => {
+                                    warn!(?ext.name, "invalid authly.id backend extension name");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            let backend_protocol = match (backend_port, backend_class) {
+                (443, _) | (_, BackendClass::AuthlyMesh) => "https",
+                _ => "http",
             };
-            let backend_url = Url::parse(&backend_url)?;
+
+            let backend_uri = Uri::from_str(&format!(
+                "{protocol}://{name}:{port}",
+                protocol = backend_protocol,
+                name = backend_ref.name,
+                port = backend_port,
+            ))?;
 
             let Some(matches) = &rule.matches else {
                 continue;
@@ -194,7 +217,7 @@ pub fn try_add_http_route(
                                         auth_directive = AuthDirective::Disabled;
                                     }
                                     _ => {
-                                        warn!(?ext.name, "invalid authly.id extension name");
+                                        warn!(?ext.name, "invalid authly.id HTTP route rule extension name");
                                     }
                                 }
                             }
@@ -207,7 +230,8 @@ pub fn try_add_http_route(
                         continue;
                     };
 
-                    let proxy = Proxy::from_service_url(&backend_url)?;
+                    let proxy = Proxy::from_backend_uri(backend_uri.clone())?
+                        .with_backend_class(backend_class);
                     let mut proxy = match auth_directive {
                         AuthDirective::Mandatory => {
                             proxy.with_auth_directive_fn(|_| AuthDirective::Mandatory)
