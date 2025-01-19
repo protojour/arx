@@ -171,6 +171,11 @@ pub fn try_add_http_route(
                 }
             }
 
+            if backend_port == 443 {
+                // Infer AuthlyMesh from the fact that the backend uses port 443.
+                backend_class = BackendClass::AuthlyMesh;
+            }
+
             let backend_protocol = match (backend_port, backend_class) {
                 (443, _) | (_, BackendClass::AuthlyMesh) => "https",
                 _ => "http",
