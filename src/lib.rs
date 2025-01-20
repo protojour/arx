@@ -69,7 +69,7 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
 
     let http_server = tower_server::Builder::new("0.0.0.0:80".parse().unwrap())
         .with_scheme(Scheme::Http)
-        .with_cancellation_token(cancel.clone())
+        .with_graceful_shutdown(cancel.clone())
         .bind()
         .await
         .context("failed to bind http server")?;
