@@ -20,7 +20,7 @@ test = false
 anyhow = "1"
 arc-swap = "1"
 async-trait = "0.1"
-authly-client = { git = "https://github.com/protojour/authly-lib.git" }
+authly-client = "0.0.3"
 bytes = "1"
 bytesize = { version = "1", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }
