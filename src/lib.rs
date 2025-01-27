@@ -13,6 +13,7 @@ pub mod config;
 
 mod authentication;
 mod gateway;
+mod headers;
 mod http_client;
 mod hyper;
 mod k8s;

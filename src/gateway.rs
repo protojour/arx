@@ -9,6 +9,7 @@ use tracing::{error, trace, Level};
 use crate::{
     authentication::process_auth_directive,
     config::ArxConfig,
+    headers::set_proxy_headers,
     http_client::HttpClient,
     hyper::{empty_body, HttpError, HyperResponse},
     layers::{compression_layer, cors_layer},
@@ -157,31 +158,11 @@ impl Gateway {
                     &matchit,
                     proxy.replace_prefix(),
                 )?;
-                let scheme = original_uri.scheme_str();
-                let prefix = original_uri.path().strip_suffix(rewritten_uri.path());
 
                 (*req.uri_mut()) = rewritten_uri;
                 trace!("rewritten URI: `{}`", req.uri());
 
-                let headers = req.headers_mut();
-                if let Some(scheme) = scheme {
-                    headers.insert(
-                        "x-forwarded-proto",
-                        HeaderValue::from_str(scheme).map_err(|_| {
-                            error!("invalid scheme: {}", scheme);
-                            HttpError::Static(StatusCode::BAD_REQUEST, "")
-                        })?,
-                    );
-                }
-                if let Some(prefix) = prefix {
-                    headers.insert(
-                        "x-forwarded-prefix",
-                        HeaderValue::from_str(prefix).map_err(|_| {
-                            error!("invalid prefix: {}", prefix);
-                            HttpError::Static(StatusCode::BAD_REQUEST, "")
-                        })?,
-                    );
-                }
+                set_proxy_headers(&mut req, &original_uri)?;
 
                 let auth_directive = proxy.get_auth_directive(&req);
 
