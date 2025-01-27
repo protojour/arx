@@ -322,9 +322,9 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "authly-client"
-version = "0.0.3"
+version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "660137cb6e51770444d218a5327216db069aaa37ee457fbc4d07ac877bf063c7"
+checksum = "aafaa7fb8d3b5367edce112ffadef2d71c7af5f4a767b8ff4eaa58feec0c8f5f"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -346,9 +346,9 @@ dependencies = [
 
 [[package]]
 name = "authly-common"
-version = "0.0.3"
+version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e545e51648a843fe51d13edd16bb7cbe1748d68c4a85b4a40fe15c555caa16f"
+checksum = "7f9b04c33915c7f7f0ac81f417b3dc4c760f9716dc3bb5a76410a1601c6d830f"
 dependencies = [
  "anyhow",
  "byteorder",
