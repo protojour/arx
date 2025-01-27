@@ -6,9 +6,10 @@ use tracing::error;
 
 use crate::hyper::HttpError;
 
-pub const X_FORWARDED_PROTO: HeaderName = HeaderName::from_static("x-forwarded-proto");
-pub const X_FORWARDED_HOST: HeaderName = HeaderName::from_static("x-forwarded-host");
-pub const X_FORWARDED_PREFIX: HeaderName = HeaderName::from_static("x-forwarded-prefix");
+const X_FORWARDED_PROTO: HeaderName = HeaderName::from_static("x-forwarded-proto");
+const X_FORWARDED_HOST: HeaderName = HeaderName::from_static("x-forwarded-host");
+const X_FORWARDED_PORT: HeaderName = HeaderName::from_static("x-forwarded-port");
+const X_FORWARDED_PREFIX: HeaderName = HeaderName::from_static("x-forwarded-prefix");
 
 pub fn set_proxy_headers(
     req: &mut http::Request<Incoming>,
@@ -36,6 +37,18 @@ pub fn set_proxy_headers(
                 X_FORWARDED_HOST,
                 HeaderValue::from_str(host).map_err(|_| {
                     error!("invalid host: {}", host);
+                    HttpError::Static(StatusCode::BAD_REQUEST, "")
+                })?,
+            );
+        }
+    }
+
+    if !headers.contains_key(X_FORWARDED_PORT) {
+        if let Some(port) = original_uri.port() {
+            headers.insert(
+                X_FORWARDED_PORT,
+                HeaderValue::from_str(port.as_str()).map_err(|_| {
+                    error!("invalid port: {}", port);
                     HttpError::Static(StatusCode::BAD_REQUEST, "")
                 })?,
             );
