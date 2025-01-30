@@ -44,7 +44,7 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
 
     let cancel = tower_server::signal::termination_signal();
 
-    let default_http_client = HttpClient::new(cfg).map_err(arx_anyhow)?;
+    let default_http_client = HttpClient::create_default(cfg, cancel.clone()).await?;
 
     let (authly_client, authly_http_client) = {
         let authly_client_builder = authly_client::Client::builder()
@@ -52,18 +52,14 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
             .from_environment()
             .await?;
 
-        let authly_http_client = HttpClient::with_tls_configured_builder(
-            reqwest::Client::builder()
-                .add_root_certificate(reqwest::tls::Certificate::from_pem(
-                    &authly_client_builder.get_local_ca_pem()?,
-                )?)
-                .identity(reqwest::Identity::from_pem(
-                    &authly_client_builder.get_identity_pem()?,
-                )?),
-            cfg,
-        )?;
-
         let authly_client = authly_client_builder.connect().await?;
+
+        let authly_http_client = HttpClient::create_with_builder_stream(
+            cfg,
+            authly_client.request_client_builder_stream().await?,
+            cancel.clone(),
+        )
+        .await?;
 
         (authly_client, authly_http_client)
     };
@@ -77,7 +73,10 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
 
     let routes = Arc::new(ArcSwap::new(Arc::new(k8s_routing::rebuild_routing_table(
         &Default::default(),
-        default_http_client.reqwest_client().clone(),
+        default_http_client
+            .current_instance()
+            .reqwest_client
+            .clone(),
     )?)));
 
     let gateway = Gateway::new(GatewayState {
@@ -92,7 +91,10 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
 
     spawn_k8s_watchers(
         routes,
-        default_http_client.reqwest_client().clone(),
+        default_http_client
+            .current_instance()
+            .reqwest_client
+            .clone(),
         cancel.clone(),
     )
     .await?;

@@ -322,14 +322,15 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "authly-client"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aafaa7fb8d3b5367edce112ffadef2d71c7af5f4a767b8ff4eaa58feec0c8f5f"
+checksum = "75fbbbcbe43237931ac2a02ad75df1e976a7ee71f1693a33349b3ce1822066a2"
 dependencies = [
  "anyhow",
  "arc-swap",
  "authly-common",
  "fnv",
+ "futures-util",
  "http",
  "jsonwebtoken",
  "pem",
@@ -339,6 +340,7 @@ dependencies = [
  "rustls-pki-types",
  "thiserror 2.0.11",
  "time",
+ "tokio",
  "tonic",
  "tracing",
  "x509-parser",
@@ -346,9 +348,9 @@ dependencies = [
 
 [[package]]
 name = "authly-common"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f9b04c33915c7f7f0ac81f417b3dc4c760f9716dc3bb5a76410a1601c6d830f"
+checksum = "e1d10f398d2f60727cd78dab4f5302d3717ee6d78a710a9c03eba4ae91368982"
 dependencies = [
  "anyhow",
  "byteorder",

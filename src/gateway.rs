@@ -10,7 +10,7 @@ use crate::{
     authentication::process_auth_directive,
     config::ArxConfig,
     headers::set_proxy_headers,
-    http_client::HttpClient,
+    http_client::{HttpClient, HttpClientInstance},
     hyper::{empty_body, HttpError, HyperResponse},
     layers::{compression_layer, cors_layer},
     local::LocalService,
@@ -64,10 +64,10 @@ pub async fn serve_gateway(
     Ok(())
 }
 
-enum RouteMatch<'a> {
+enum RouteMatch {
     Proxy {
         // The HTTP client to use when proxying
-        http_client: &'a reqwest::Client,
+        http_client_instance: Arc<HttpClientInstance>,
         req: Request<hyper::body::Incoming>,
         auth_directive: AuthDirective,
     },
@@ -101,7 +101,7 @@ impl Gateway {
     ) -> Result<HyperResponse, HttpError> {
         match self.match_route(req)? {
             RouteMatch::Proxy {
-                http_client: client,
+                http_client_instance,
                 mut req,
                 auth_directive,
             } => {
@@ -113,7 +113,7 @@ impl Gateway {
                 .await
                 .map_err(|_| HttpError::Static(StatusCode::UNAUTHORIZED, "unauthorized"))?;
 
-                reverse_proxy(req, client).await
+                reverse_proxy(req, &http_client_instance).await
             }
             RouteMatch::TemporaryRedirect(uri) => Ok(http::Response::builder()
                 .status(StatusCode::TEMPORARY_REDIRECT)
@@ -167,12 +167,12 @@ impl Gateway {
                 let auth_directive = proxy.get_auth_directive(&req);
 
                 let http_client = match proxy.backend_class() {
-                    BackendClass::Plain => self.state.backends.default.reqwest_client(),
-                    BackendClass::AuthlyMesh => self.state.backends.authly.reqwest_client(),
+                    BackendClass::Plain => &self.state.backends.default,
+                    BackendClass::AuthlyMesh => &self.state.backends.authly,
                 };
 
                 Ok(RouteMatch::Proxy {
-                    http_client,
+                    http_client_instance: http_client.current_instance(),
                     req,
                     auth_directive,
                 })

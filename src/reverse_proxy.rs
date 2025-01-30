@@ -11,13 +11,16 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::protocol::{self, WebSocketConfig};
 use tracing::{debug, error, info};
 
-use crate::hyper::{empty_body, HttpError, HyperResponse};
+use crate::{
+    http_client::HttpClientInstance,
+    hyper::{empty_body, HttpError, HyperResponse},
+};
 
 /// Reverse-proxy a request.
 /// The URI is already rewritten to point to the backend server.
 pub async fn reverse_proxy<B>(
     mut req: http::Request<B>,
-    client: &reqwest::Client,
+    client: &HttpClientInstance,
 ) -> Result<HyperResponse, HttpError>
 where
     B: Body<Data = bytes::Bytes> + Send + Sync + 'static,
@@ -25,7 +28,12 @@ where
 {
     match req.headers().get(header::UPGRADE).map(|h| h.as_bytes()) {
         None => {}
-        Some(b"websocket") => return proxy_websocket(req, client).await,
+        Some(b"websocket") => {
+            // FIXME: Currently tracing is disabled for websockets,
+            // figure out a way to do (otel) tracing without reqwest-middleware.
+            // reqwest-middleware and reqwest-websocket cannot currently be used simultaneously.
+            return proxy_websocket(req, &client.reqwest_client).await;
+        }
         Some(_) => return Err(HttpError::bad_request("unrecognized `Upgrade` header")),
     }
 
@@ -35,13 +43,14 @@ where
     let req_body = http_body_util::BodyDataStream::new(req.into_body());
 
     let response_result = client
+        .middleware_client
         .request(method, uri.to_string())
         .headers(headers)
         .body(reqwest::Body::wrap_stream(req_body))
         .send()
         .await;
 
-    reqwest_to_hyper_response(response_result)
+    reqwest_middleware_to_hyper_response(response_result)
 }
 
 /// Reverse-proxy a request, where the request body is !Sync.
@@ -126,6 +135,26 @@ where
 
 fn reqwest_to_hyper_response(
     response_result: Result<reqwest::Response, reqwest::Error>,
+) -> Result<HyperResponse, HttpError> {
+    let response: http::Response<_> = response_result
+        .map_err(|err| {
+            if let Some(status) = err.status() {
+                HttpError::Dynamic(status, err.to_string())
+            } else {
+                HttpError::Dynamic(StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+            }
+        })?
+        .into();
+
+    let (parts, body) = response.into_parts();
+    Ok(http::Response::from_parts(
+        parts,
+        body.map_err(|err| err.into()).boxed_unsync(),
+    ))
+}
+
+fn reqwest_middleware_to_hyper_response(
+    response_result: Result<reqwest::Response, reqwest_middleware::Error>,
 ) -> Result<HyperResponse, HttpError> {
     let response: http::Response<_> = response_result
         .map_err(|err| {

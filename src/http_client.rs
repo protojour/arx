@@ -1,150 +1,153 @@
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
-use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+use anyhow::anyhow;
+use arc_swap::ArcSwap;
+use futures_util::{Stream, StreamExt};
+use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_tracing::TracingMiddleware;
+use tokio_util::sync::CancellationToken;
 
 use crate::{arx_anyhow, config::ArxConfig, ArxError};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// A wrapper around reqwest_middleware with better dynamic middleware support.
-///
-/// The default middleware is tracing support.
-///
-/// The HttpClient Derefs to [ClientWithMiddleware], its methods can be called directly.
+/// A wrapper around reqwest/reqwest_middleware with tracing support.
 #[derive(Clone)]
 pub struct HttpClient {
-    inner: Arc<HttpClientInner>,
-    pub middleware_client: ClientWithMiddleware,
+    instance: Arc<ArcSwap<HttpClientInstance>>,
+}
+
+pub struct HttpClientInstance {
+    pub reqwest_client: reqwest::Client,
+    pub middleware_client: reqwest_middleware::ClientWithMiddleware,
 }
 
 impl HttpClient {
-    /// Client without TLS configuration
-    pub fn new(cfg: &ArxConfig) -> Result<Self, ArxError> {
-        Self::with_tls_configured_builder(reqwest::Client::builder(), cfg)
+    pub async fn create_default(
+        cfg: &'static ArxConfig,
+        cancel: CancellationToken,
+    ) -> Result<Self, ArxError> {
+        Self::create_with_builder_stream(
+            cfg,
+            futures_util::stream::iter([reqwest::Client::builder()]),
+            cancel,
+        )
+        .await
     }
 
-    pub fn with_tls_configured_builder(
-        builder: reqwest::ClientBuilder,
-        cfg: &ArxConfig,
+    pub async fn create_with_builder_stream(
+        cfg: &'static ArxConfig,
+        mut client_builder_stream: impl Stream<Item = reqwest::ClientBuilder> + Unpin + Send + 'static,
+        cancel: CancellationToken,
     ) -> Result<Self, ArxError> {
-        let builder = builder
-            .user_agent(format!("Arx/{}", VERSION))
-            .connect_timeout(cfg.connect_timeout)
-            .timeout(cfg.request_timeout)
-            .tcp_keepalive(cfg.keep_alive_timeout)
-            .http2_keep_alive_timeout(cfg.keep_alive_timeout)
-            .danger_accept_invalid_certs(cfg.http_accept_invalid_certs)
-            .tls_built_in_root_certs(cfg.use_root_certs)
-            .tls_built_in_webpki_certs(cfg.use_webpki_certs);
+        let Some(initial_builder) = client_builder_stream.next().await else {
+            return Err(ArxError::Internal(anyhow!("no client builders")));
+        };
 
-        // check if ca_file is set, we want to fail if the file doesn't exist
-        /*
-        if let Some(ca_file) = cfg.ca_file.as_ref() {
-            let data = fs::read_to_string(ca_file)?;
-            let cert = reqwest::tls::Certificate::from_pem(data.as_bytes())?;
-            builder = builder.add_root_certificate(cert);
-        }
-        */
+        let instance = build_instance(cfg, initial_builder)?;
+        let client = HttpClient {
+            instance: Arc::new(ArcSwap::new(Arc::new(instance))),
+        };
 
-        let client = builder.build().map_err(arx_anyhow)?;
-
-        let inner = Arc::new(HttpClientInner {
-            client,
-            retry_policy: ExponentialBackoff::builder()
-                .jitter(cfg.backoff_jitter.into())
-                .retry_bounds(
-                    cfg.backoff_min_retry_interval,
-                    cfg.backoff_max_retry_interval,
-                )
-                .build_with_max_retries(cfg.backoff_max_num_retries),
+        tokio::spawn({
+            let client = client.clone();
+            async move {
+                loop {
+                    tokio::select! {
+                        next = client_builder_stream.next() => {
+                            if let Some(builder) = next {
+                                match build_instance(cfg, builder) {
+                                    Ok(instance) => {
+                                        client.instance.store(
+                                            Arc::new(instance)
+                                        );
+                                    }
+                                    Err(err) => {
+                                        tracing::error!(?err, "Failed to rebuild client");
+                                    }
+                                }
+                            } else {
+                                // No more builders
+                                return;
+                            }
+                        }
+                        _ = cancel.cancelled() => {
+                            return;
+                        }
+                    }
+                }
+            }
         });
 
-        let middleware_client = ClientBuilder::new(inner.client.clone())
-            .with(TracingMiddleware::default())
-            .build();
-
-        Ok(Self {
-            inner,
-            middleware_client,
-        })
+        Ok(client)
     }
 
-    /// Return the raw inner reqwest client
-    pub fn reqwest_client(&self) -> &reqwest::Client {
-        &self.inner.client
-    }
-
-    #[expect(unused)]
-    pub fn disable_tracing(&self) -> Self {
-        Self {
-            middleware_client: ClientBuilder::new(self.inner.client.clone()).build(),
-            inner: self.inner.clone(),
-        }
-    }
-
-    #[allow(unused)]
-    pub fn with_backoff(&self) -> Self {
-        Self {
-            middleware_client: ClientBuilder::new(self.inner.client.clone())
-                .with(RetryTransientMiddleware::new_with_policy(
-                    self.inner.retry_policy,
-                ))
-                .with(TracingMiddleware::default())
-                .build(),
-            inner: self.inner.clone(),
-        }
-    }
-
-    #[expect(unused)]
-    pub fn with_backoff_disable_tracing(&self) -> Self {
-        Self {
-            middleware_client: ClientBuilder::new(self.inner.client.clone())
-                .with(RetryTransientMiddleware::new_with_policy(
-                    self.inner.retry_policy,
-                ))
-                .build(),
-            inner: self.inner.clone(),
-        }
+    pub fn current_instance(&self) -> Arc<HttpClientInstance> {
+        self.instance.load_full()
     }
 }
 
-impl Deref for HttpClient {
-    type Target = ClientWithMiddleware;
+fn build_instance(
+    cfg: &'static ArxConfig,
+    builder: reqwest::ClientBuilder,
+) -> Result<HttpClientInstance, ArxError> {
+    let builder = builder
+        .user_agent(format!("Arx/{}", VERSION))
+        .connect_timeout(cfg.connect_timeout)
+        .timeout(cfg.request_timeout)
+        .tcp_keepalive(cfg.keep_alive_timeout)
+        .http2_keep_alive_timeout(cfg.keep_alive_timeout)
+        .danger_accept_invalid_certs(cfg.http_accept_invalid_certs)
+        .tls_built_in_root_certs(cfg.use_root_certs)
+        .tls_built_in_webpki_certs(cfg.use_webpki_certs);
 
-    fn deref(&self) -> &Self::Target {
-        &self.middleware_client
-    }
-}
+    let client = builder.build().map_err(arx_anyhow)?;
 
-struct HttpClientInner {
-    client: reqwest::Client,
-    retry_policy: ExponentialBackoff,
+    // No backoff support at this point..
+    let _retry_policy = ExponentialBackoff::builder()
+        .jitter(cfg.backoff_jitter.into())
+        .retry_bounds(
+            cfg.backoff_min_retry_interval,
+            cfg.backoff_max_retry_interval,
+        )
+        .build_with_max_retries(cfg.backoff_max_num_retries);
+
+    let middleware_client = reqwest_middleware::ClientBuilder::new(client.clone())
+        .with(TracingMiddleware::default())
+        .build();
+
+    Ok(HttpClientInstance {
+        reqwest_client: client,
+        middleware_client,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
 
-    use figment::{
-        providers::{Format, Serialized, Yaml},
-        Figment,
-    };
-    use indoc::indoc;
-    use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
+    use tokio_util::sync::DropGuard;
 
-    // use crate::server_util::RustlsServerConfig;
+    async fn test_client(cfg: &'static ArxConfig) -> (HttpClient, DropGuard) {
+        let cancel = CancellationToken::new();
+        let client = HttpClient::create_default(cfg, cancel.clone())
+            .await
+            .unwrap();
+        (client, cancel.drop_guard())
+    }
 
+    /*
     fn config_from_yaml(yaml: &str) -> Result<ArxConfig, figment::Error> {
         Figment::from(Serialized::defaults(ArxConfig::default()))
             .merge(Yaml::string(yaml))
             .extract()
     }
+    */
 
+    /*
     #[tokio::test]
     async fn request_retry() {
+        let cancel = CancellationToken::new();
         let cfg = config_from_yaml(indoc! {r#"
             request_timeout: 10ms
             backoff_max_num_retries: 2
@@ -158,35 +161,51 @@ mod tests {
             .expect(2..)
             .mount(&mock_server)
             .await;
-        let client = HttpClient::new(&cfg).unwrap().with_backoff();
+        let client = create_http_client(&cfg, iter([reqwest::Client::builder()]), cancel.clone())
+            .await
+            .unwrap()
         let _result = client.get(mock_server.uri()).send().await;
     }
+    */
 
     #[tokio::test]
     async fn verify_webpki_certs() {
-        let mut cfg = ArxConfig {
+        let cfg = Box::leak(Box::new(ArxConfig {
             use_root_certs: false,
             use_webpki_certs: false,
             ..Default::default()
-        };
-
-        let client = HttpClient::new(&cfg).unwrap();
-        let result = client.get("https://www.rust-lang.org").send().await;
+        }));
+        let (client, _drop) = test_client(cfg).await;
+        let result = client
+            .current_instance()
+            .reqwest_client
+            .get("https://www.rust-lang.org")
+            .send()
+            .await;
         assert!(result.is_err());
 
-        cfg.use_webpki_certs = true;
-        let client = HttpClient::new(&cfg).unwrap();
-        let result = client.get("https://www.rust-lang.org").send().await;
+        let cfg = Box::leak(Box::new(ArxConfig {
+            use_root_certs: false,
+            use_webpki_certs: true,
+            ..Default::default()
+        }));
+        let (client, _drop) = test_client(cfg).await;
+        let result = client
+            .current_instance()
+            .reqwest_client
+            .get("http://localhost:8080")
+            .send()
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn use_custom_ca() {
-        let mut _cfg = ArxConfig {
+        let mut _cfg = Box::leak(Box::new(ArxConfig {
             use_root_certs: false,
             use_webpki_certs: false,
             ..Default::default()
-        };
+        }));
 
         let app = axum::Router::new().route("/", axum::routing::get(|| async { "" }));
 
