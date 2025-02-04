@@ -4,7 +4,9 @@ FROM --platform=$BUILDPLATFORM ghcr.io/rust-cross/rust-musl-cross:aarch64-musl A
 
 FROM cross_${TARGETARCH} AS cross
 ARG TARGETARCH
-RUN apt-get update && apt-get install --no-install-recommends -y protobuf-compiler=3.12.4-1ubuntu7.22.04.1
+RUN apt update && apt install -y unzip && \
+    curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v26.1/protoc-26.1-linux-x86_64.zip && \
+    unzip protoc-26.1-linux-x86_64.zip -d /usr/ && chmod 755 protoc-26.1-linux-x86_64.zip
 RUN cargo install cargo-chef --target x86_64-unknown-linux-gnu
 WORKDIR /app
 
