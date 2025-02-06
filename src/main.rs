@@ -70,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
         tracing_layer.with(telemetry).init();
     }
 
-    info!("🧠 Arx v{VERSION}");
+    info!("🏰 Arx v{VERSION}");
 
     arx::run(cfg).await?;
 
