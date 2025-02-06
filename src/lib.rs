@@ -56,7 +56,7 @@ pub async fn run(cfg: ArxConfig) -> anyhow::Result<()> {
 
         let authly_http_client = HttpClient::create_with_builder_stream(
             cfg,
-            authly_client.request_client_builder_stream().await?,
+            authly_client.request_client_builder_stream()?,
             cancel.clone(),
         )
         .await?;
