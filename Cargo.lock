@@ -322,8 +322,8 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "authly-client"
-version = "0.0.5"
-source = "git+https://github.com/protojour/authly-lib.git#3ab36de787180781414e81758cdd28a8cd8eb60d"
+version = "0.0.7"
+source = "git+https://github.com/protojour/authly-lib.git#27206f61b5142da22ac007e14018525a40f649fe"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -348,8 +348,8 @@ dependencies = [
 
 [[package]]
 name = "authly-common"
-version = "0.0.5"
-source = "git+https://github.com/protojour/authly-lib.git#3ab36de787180781414e81758cdd28a8cd8eb60d"
+version = "0.0.7"
+source = "git+https://github.com/protojour/authly-lib.git#27206f61b5142da22ac007e14018525a40f649fe"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -365,7 +365,6 @@ dependencies = [
  "tonic",
  "tonic-build",
  "tracing",
- "unsigned-varint",
 ]
 
 [[package]]
@@ -3771,12 +3770,6 @@ name = "unsafe-libyaml"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
-
-[[package]]
-name = "unsigned-varint"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb066959b24b5196ae73cb057f45598450d2c5f71460e98c49b738086eff9c06"
 
 [[package]]
 name = "untrusted"
