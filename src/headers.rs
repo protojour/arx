@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use http::{HeaderName, HeaderValue, StatusCode, Uri};
+use http::{header::HOST, HeaderName, HeaderValue, StatusCode, Uri};
 use hyper::body::Incoming;
 use tracing::error;
 
@@ -18,21 +18,21 @@ pub fn set_proxy_headers(
     let prefix = original_uri.path().strip_suffix(req.uri().path());
     let headers = req.headers_mut();
 
+    let host_header = headers.remove(HOST);
+    let host_port = host_header
+        .as_ref()
+        .and_then(|host| host.to_str().ok())
+        .and_then(|host| host.split_once(':'));
+
     if !headers.contains_key(X_FORWARDED_PROTO) {
-        if let Some(scheme) = original_uri.scheme_str() {
-            headers.insert(
-                X_FORWARDED_PROTO,
-                HeaderValue::from_str(scheme).map_err(|_| {
-                    error!("invalid scheme: {}", scheme);
-                    HttpError::Static(StatusCode::BAD_REQUEST, "")
-                })?,
-            );
-        }
+        // for now, Arx always runs plain HTTP.
+        // FIXME: Support HTTPS natively
+        headers.insert(X_FORWARDED_PROTO, HeaderValue::from_static("http"));
     }
 
     // if headers already contain x-forwarded-host from another proxy, don't touch it
     if !headers.contains_key(X_FORWARDED_HOST) {
-        if let Some(host) = original_uri.host() {
+        if let Some((host, _port)) = host_port.as_ref() {
             headers.insert(
                 X_FORWARDED_HOST,
                 HeaderValue::from_str(host).map_err(|_| {
@@ -44,10 +44,10 @@ pub fn set_proxy_headers(
     }
 
     if !headers.contains_key(X_FORWARDED_PORT) {
-        if let Some(port) = original_uri.port() {
+        if let Some((_host, port)) = host_port.as_ref() {
             headers.insert(
                 X_FORWARDED_PORT,
-                HeaderValue::from_str(port.as_str()).map_err(|_| {
+                HeaderValue::from_str(port).map_err(|_| {
                     error!("invalid port: {}", port);
                     HttpError::Static(StatusCode::BAD_REQUEST, "")
                 })?,
