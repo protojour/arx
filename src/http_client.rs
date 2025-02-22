@@ -99,7 +99,9 @@ fn build_instance(
         .http2_keep_alive_timeout(cfg.keep_alive_timeout)
         .danger_accept_invalid_certs(cfg.http_accept_invalid_certs)
         .tls_built_in_root_certs(cfg.use_root_certs)
-        .tls_built_in_webpki_certs(cfg.use_webpki_certs);
+        .tls_built_in_webpki_certs(cfg.use_webpki_certs)
+        // redirects should be reflected
+        .redirect(reqwest::redirect::Policy::none());
 
     let client = builder.build().map_err(arx_anyhow)?;
 

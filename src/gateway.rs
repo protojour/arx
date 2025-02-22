@@ -4,7 +4,7 @@ use arc_swap::ArcSwap;
 use http::{header, HeaderValue, Request, StatusCode, Uri};
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
-use tracing::{error, trace, Level};
+use tracing::{debug, error, trace, Level};
 
 use crate::{
     authentication::process_auth_directive,
@@ -160,7 +160,7 @@ impl Gateway {
                 )?;
 
                 (*req.uri_mut()) = rewritten_uri;
-                trace!("rewritten URI: `{}`", req.uri());
+                debug!("rewritten URI: `{}`", req.uri());
 
                 set_proxy_headers(&mut req, &original_uri)?;
 
