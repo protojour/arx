@@ -195,7 +195,7 @@ mod tests {
         let result = client
             .current_instance()
             .reqwest_client
-            .get("http://localhost:8080")
+            .get("https://www.rust-lang.org")
             .send()
             .await;
         assert!(result.is_ok());
